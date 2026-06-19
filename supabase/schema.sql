@@ -28,3 +28,14 @@ create policy "Users own deposits via goals"
   on deposits for all using (
     exists (select 1 from goals where goals.id = deposits.goal_id and goals.user_id = auth.uid())
   );
+
+-- Allows users to delete their own account from the client
+create or replace function delete_user()
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  delete from auth.users where id = auth.uid();
+end;
+$$;

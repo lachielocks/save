@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PiggyBank, LogOut, Plus } from 'lucide-react'
+import { PiggyBank, Settings, Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import GoalCard from './GoalCard'
 import NewGoalForm from './NewGoalForm'
 
-export default function Dashboard({ session }) {
+export default function Dashboard({ session, onSettings }) {
   const [goals, setGoals] = useState([])
   const [activeGoalId, setActiveGoalId] = useState(null)
   const [showNewGoal, setShowNewGoal] = useState(false)
@@ -29,10 +29,6 @@ export default function Dashboard({ session }) {
     setLoading(false)
   }
 
-  async function signOut() {
-    await supabase.auth.signOut()
-  }
-
   async function handleNewGoal(goal) {
     await fetchGoals()
     setActiveGoalId(goal.id)
@@ -52,9 +48,8 @@ export default function Dashboard({ session }) {
           <PiggyBank size={18} />
           Save
         </div>
-        <button className="signout" onClick={signOut}>
-          <LogOut size={13} />
-          Sign out
+        <button className="signout" onClick={onSettings}>
+          <Settings size={14} />
         </button>
       </div>
 

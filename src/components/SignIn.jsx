@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { PiggyBank, ArrowLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
-export default function SignIn({ onSignUp, onBack }) {
+export default function SignIn({ onSignUp, onBack, onForgot }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -45,7 +45,12 @@ export default function SignIn({ onSignUp, onBack }) {
             />
           </div>
           <div className="field">
-            <label>Password</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label>Password</label>
+              <button type="button" className="link-btn" style={{ fontSize: '0.75rem', color: 'var(--muted)' }} onClick={onForgot}>
+                Forgot password?
+              </button>
+            </div>
             <input
               type="password"
               value={password}
