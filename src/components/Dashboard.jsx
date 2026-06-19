@@ -64,7 +64,12 @@ export default function Dashboard({ session }) {
           animate={{ opacity: 1 }}
           className="no-goals"
         >
-          <p style={{ marginBottom: 24 }}>No savings goals yet.</p>
+          <p style={{ marginBottom: 8 }}>
+            {session.user.user_metadata?.display_name
+              ? `Hey ${session.user.user_metadata.display_name} —`
+              : 'Hey —'}
+          </p>
+          <p style={{ marginBottom: 24, color: 'var(--muted)' }}>No savings goals yet.</p>
           <button className="btn" style={{ width: 'auto', padding: '10px 24px' }} onClick={() => setShowNewGoal(true)}>
             Create your first goal
           </button>
