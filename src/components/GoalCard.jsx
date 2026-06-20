@@ -126,9 +126,12 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) 
     const ext = file.name.split('.').pop().toLowerCase()
     const path = `${goal.id}.${ext}`
 
+    // Remove any existing file first so we only need INSERT, not UPDATE
+    await supabase.storage.from('goal-images').remove([path])
+
     const { error: uploadErr } = await supabase.storage
       .from('goal-images')
-      .upload(path, file, { upsert: true, contentType: file.type })
+      .upload(path, file, { contentType: file.type })
 
     if (uploadErr) {
       setUploadError(uploadErr.message)
