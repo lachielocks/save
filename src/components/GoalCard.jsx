@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { weeklyRequired, totalSaved, progressPercent } from '../lib/calculations'
 
@@ -11,11 +12,13 @@ function fmtDate(str) {
   return new Date(str).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export default function GoalCard({ goal, onDeposit }) {
+export default function GoalCard({ goal, onDeposit, onDeleted }) {
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const deposits = goal.deposits || []
   const saved = totalSaved(deposits)
@@ -45,10 +48,36 @@ export default function GoalCard({ goal, onDeposit }) {
     onDeposit()
   }
 
+  async function handleDelete() {
+    setDeleting(true)
+    await supabase.from('goals').delete().eq('id', goal.id)
+    onDeleted()
+  }
+
   return (
     <>
       <div className="card">
-        <div className="stat-label">{goal.name}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div className="stat-label">{goal.name}</div>
+          {!confirmDelete ? (
+            <button
+              className="icon-btn"
+              onClick={() => setConfirmDelete(true)}
+              title="Delete goal"
+            >
+              <Trash2 size={13} />
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>Delete?</span>
+              <button className="icon-btn icon-btn-danger" onClick={handleDelete} disabled={deleting}>
+                {deleting ? '...' : 'Yes'}
+              </button>
+              <button className="icon-btn" onClick={() => setConfirmDelete(false)}>No</button>
+            </div>
+          )}
+        </div>
+
         <div className="stat-value" style={{ marginTop: 6 }}>
           {fmt(saved)}
           <span style={{ fontSize: '1rem', color: 'var(--muted)', fontWeight: 400 }}>

@@ -39,6 +39,11 @@ export default function Dashboard({ session, onSettings }) {
     await fetchGoals()
   }
 
+  async function handleDeleted() {
+    setActiveGoalId(null)
+    await fetchGoals()
+  }
+
   const activeGoal = goals.find(g => g.id === activeGoalId)
 
   return (
@@ -115,7 +120,7 @@ export default function Dashboard({ session, onSettings }) {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
           >
-            <GoalCard goal={activeGoal} onDeposit={handleDeposit} />
+            <GoalCard goal={activeGoal} onDeposit={handleDeposit} onDeleted={handleDeleted} />
           </motion.div>
         ) : null}
       </AnimatePresence>
