@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { totalSaved, progressPercent } from '../lib/calculations'
 import GoalCard from './GoalCard'
 import NewGoalForm from './NewGoalForm'
+import TiltedCard from './TiltedCard'
 
 const SORT_OPTIONS = [
   { value: 'created', label: 'Created' },
@@ -97,35 +98,65 @@ export default function Dashboard({ session, onSettings }) {
       )}
 
       {goals.length > 0 && (
-        <>
-          <div className="tabs-bar">
-            <div className="goal-tabs">
-              {sorted.map(g => (
-                <button
-                  key={g.id}
-                  className={`goal-tab ${g.id === activeGoalId ? 'active' : ''}`}
-                  onClick={() => { setActiveGoalId(g.id); setShowNewGoal(false) }}
-                >
-                  {g.name}
-                </button>
-              ))}
-              <button className="goal-tab" onClick={() => setShowNewGoal(true)} title="New goal">
-                <Plus size={13} />
+        <div className="tabs-bar">
+          <div className="goal-tabs">
+            {sorted.map(g => (
+              <button
+                key={g.id}
+                className={`goal-tab ${g.id === activeGoalId ? 'active' : ''}`}
+                onClick={() => { setActiveGoalId(g.id); setShowNewGoal(false) }}
+              >
+                {g.name}
               </button>
-            </div>
-            <select
-              className="sort-select"
-              value={sort}
-              onChange={e => changeSort(e.target.value)}
-              title="Sort goals"
-            >
-              {SORT_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            ))}
+            <button className="goal-tab" onClick={() => setShowNewGoal(true)} title="New goal">
+              <Plus size={13} />
+            </button>
           </div>
-        </>
+          <select
+            className="sort-select"
+            value={sort}
+            onChange={e => changeSort(e.target.value)}
+            title="Sort goals"
+          >
+            {SORT_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
       )}
+
+      {/* TiltedCard sits between tabs and cards, animates when active goal changes */}
+      <AnimatePresence mode="wait">
+        {activeGoal?.image_url && !showNewGoal && (
+          <motion.div
+            key={`img-${activeGoalId}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            style={{ marginBottom: 12 }}
+          >
+            <TiltedCard
+              imageSrc={activeGoal.image_url}
+              altText={activeGoal.name}
+              captionText={activeGoal.name}
+              containerHeight="260px"
+              containerWidth="100%"
+              imageHeight="220px"
+              imageWidth="220px"
+              rotateAmplitude={10}
+              scaleOnHover={1.08}
+              showMobileWarning={false}
+              showTooltip={true}
+              displayOverlayContent={true}
+              overlayContent={
+                <span className="tilted-card-overlay-text">{activeGoal.name}</span>
+              }
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence mode="wait">
         {showNewGoal ? (
@@ -146,7 +177,12 @@ export default function Dashboard({ session, onSettings }) {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
           >
-            <GoalCard goal={activeGoal} onDeposit={handleDeposit} onDeleted={handleDeleted} />
+            <GoalCard
+              goal={activeGoal}
+              onDeposit={handleDeposit}
+              onDeleted={handleDeleted}
+              onImageChange={fetchGoals}
+            />
           </motion.div>
         ) : null}
       </AnimatePresence>

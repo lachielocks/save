@@ -4,7 +4,6 @@ import { Trash2, Share2, Check, X, ImagePlus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useCurrency } from '../context/CurrencyContext'
 import CountUp from './CountUp'
-import TiltedCard from './TiltedCard'
 import {
   weeklyRequired, totalSaved, progressPercent,
   thisWeekDeposited, projectedDate, fmt,
@@ -56,7 +55,7 @@ function DepositRow({ deposit, currency, onDelete }) {
   )
 }
 
-export default function GoalCard({ goal, onDeposit, onDeleted }) {
+export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) {
   const { currency } = useCurrency()
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
@@ -67,8 +66,8 @@ export default function GoalCard({ goal, onDeposit, onDeleted }) {
   const [sharing, setSharing] = useState(false)
   const [isPublic, setIsPublic] = useState(goal.is_public || false)
   const [copied, setCopied] = useState(false)
-  const [imageUrl, setImageUrl] = useState(goal.image_url || null)
   const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
   const fileInputRef = useRef(null)
 
   const deposits = goal.deposits || []
@@ -122,49 +121,42 @@ export default function GoalCard({ goal, onDeposit, onDeleted }) {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
+    setUploadError('')
 
-    const ext = file.name.split('.').pop()
+    const ext = file.name.split('.').pop().toLowerCase()
     const path = `${goal.id}.${ext}`
 
     const { error: uploadErr } = await supabase.storage
       .from('goal-images')
-      .upload(path, file, { upsert: true })
+      .upload(path, file, { upsert: true, contentType: file.type })
 
-    if (uploadErr) { setUploading(false); return }
+    if (uploadErr) {
+      setUploadError(uploadErr.message)
+      setUploading(false)
+      return
+    }
 
     const { data: { publicUrl } } = supabase.storage
       .from('goal-images')
       .getPublicUrl(path)
 
-    await supabase.from('goals').update({ image_url: publicUrl }).eq('id', goal.id)
-    setImageUrl(publicUrl)
+    const { error: updateErr } = await supabase
+      .from('goals')
+      .update({ image_url: publicUrl })
+      .eq('id', goal.id)
+
+    if (updateErr) {
+      setUploadError(updateErr.message)
+      setUploading(false)
+      return
+    }
+
     setUploading(false)
+    onImageChange()
   }
 
   return (
     <>
-      {imageUrl && (
-        <div style={{ marginBottom: 12 }}>
-          <TiltedCard
-            imageSrc={imageUrl}
-            altText={goal.name}
-            captionText={goal.name}
-            containerHeight="260px"
-            containerWidth="100%"
-            imageHeight="220px"
-            imageWidth="220px"
-            rotateAmplitude={10}
-            scaleOnHover={1.08}
-            showMobileWarning={false}
-            showTooltip={true}
-            displayOverlayContent={true}
-            overlayContent={
-              <span className="tilted-card-overlay-text">{goal.name}</span>
-            }
-          />
-        </div>
-      )}
-
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div className="stat-label">{goal.name}</div>
@@ -219,6 +211,9 @@ export default function GoalCard({ goal, onDeposit, onDeleted }) {
           <p style={{ fontSize: '0.75rem', color: 'var(--green)', marginTop: 4 }}>
             Link copied to clipboard
           </p>
+        )}
+        {uploadError && (
+          <p className="error" style={{ marginTop: 4 }}>{uploadError}</p>
         )}
 
         <div className="stat-value" style={{ marginTop: 6 }}>
