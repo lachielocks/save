@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { PiggyBank, Target, TrendingDown, History } from 'lucide-react'
 import { PageTransition } from '../App'
+import { useAuth } from '../context/AuthContext'
 import Footer from './Footer'
 
 const features = [
@@ -23,6 +24,7 @@ const features = [
 
 export default function Landing() {
   const navigate = useNavigate()
+  const { session } = useAuth()
 
   return (
     <PageTransition>
@@ -33,12 +35,20 @@ export default function Landing() {
             Save
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-ghost" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => navigate('/login')}>
-              Sign in
-            </button>
-            <button className="btn" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => navigate('/signup')}>
-              Get started
-            </button>
+            {session ? (
+              <button className="btn" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => navigate('/goals')}>
+                Open Goals
+              </button>
+            ) : (
+              <>
+                <button className="btn btn-ghost" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => navigate('/login')}>
+                  Sign in
+                </button>
+                <button className="btn" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => navigate('/signup')}>
+                  Get started
+                </button>
+              </>
+            )}
           </div>
         </nav>
 
@@ -47,9 +57,11 @@ export default function Landing() {
           <p className="hero-sub">
             Set a savings goal and a deadline. Save tells you exactly how much to put away each week — and adjusts automatically when you get ahead.
           </p>
-          <button className="btn hero-cta" onClick={() => navigate('/signup')}>
-            Create a free account
-          </button>
+          {!session && (
+            <button className="btn hero-cta" onClick={() => navigate('/signup')}>
+              Create a free account
+            </button>
+          )}
         </div>
 
         <div className="features">
