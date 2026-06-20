@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Trash2, Share2, Check, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useCurrency } from '../context/CurrencyContext'
+import CountUp from './CountUp'
 import {
   weeklyRequired, totalSaved, progressPercent,
   thisWeekDeposited, projectedDate, fmt,
@@ -10,6 +11,13 @@ import {
 
 function fmtDate(str) {
   return new Date(str).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// Extracts the currency symbol (e.g. "$", "€", "¥") from a currency code
+function getCurrencySymbol(currency) {
+  const parts = Intl.NumberFormat(undefined, { style: 'currency', currency })
+    .formatToParts(0)
+  return parts.find(p => p.type === 'currency')?.value ?? currency
 }
 
 function DepositRow({ deposit, currency, onDelete }) {
@@ -63,6 +71,8 @@ export default function GoalCard({ goal, onDeposit, onDeleted }) {
 
   const deposits = goal.deposits || []
   const saved = totalSaved(deposits)
+  const prevSaved = useRef(saved)
+  const symbol = getCurrencySymbol(currency)
   const progress = progressPercent(goal.goal_amount, deposits)
   const weeklyNeeded = weeklyRequired({ goalAmount: goal.goal_amount, endDate: goal.end_date, deposits })
   const isComplete = saved >= goal.goal_amount
@@ -147,7 +157,14 @@ export default function GoalCard({ goal, onDeposit, onDeleted }) {
         )}
 
         <div className="stat-value" style={{ marginTop: 6 }}>
-          {fmt(saved, currency)}
+          <span>{symbol}</span>
+          <CountUp
+            from={prevSaved.current}
+            to={saved}
+            separator=","
+            duration={1}
+            onEnd={() => { prevSaved.current = saved }}
+          />
           <span style={{ fontSize: '1rem', color: 'var(--muted)', fontWeight: 400 }}>
             {' '}/ {fmt(goal.goal_amount, currency)}
           </span>
