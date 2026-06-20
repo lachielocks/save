@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Trash2, Share2, Check, X, ImagePlus } from 'lucide-react'
+import { Trash2, Share2, Check, X, ImagePlus, Pencil } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useCurrency } from '../context/CurrencyContext'
 import CountUp from './CountUp'
@@ -55,6 +55,24 @@ function DepositRow({ deposit, currency, onDelete }) {
   )
 }
 
+const MIN_WEEKS = 1
+const MAX_WEEKS = 104
+
+function weeksFromDate(dateStr) {
+  const diff = new Date(dateStr) - new Date()
+  return Math.max(MIN_WEEKS, Math.round(diff / (7 * 24 * 60 * 60 * 1000)))
+}
+
+function endDateFromWeeks(weeks) {
+  const d = new Date()
+  d.setDate(d.getDate() + weeks * 7)
+  return d.toISOString().split('T')[0]
+}
+
+function fmtEndDateStr(isoStr) {
+  return new Date(isoStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) {
   const { currency } = useCurrency()
   const [amount, setAmount] = useState('')
@@ -69,6 +87,28 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) 
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const fileInputRef = useRef(null)
+
+  const [editing, setEditing] = useState(false)
+  const [editName, setEditName] = useState(goal.name)
+  const [editAmount, setEditAmount] = useState(String(goal.goal_amount))
+  const [editWeeks, setEditWeeks] = useState(() => weeksFromDate(goal.end_date))
+  const [editError, setEditError] = useState('')
+  const [editLoading, setEditLoading] = useState(false)
+
+  async function handleEdit(e) {
+    e.preventDefault()
+    setEditError('')
+    setEditLoading(true)
+    const { error } = await supabase.from('goals').update({
+      name: editName.trim(),
+      goal_amount: parseFloat(editAmount),
+      end_date: endDateFromWeeks(editWeeks),
+    }).eq('id', goal.id)
+    setEditLoading(false)
+    if (error) return setEditError(error.message)
+    setEditing(false)
+    onImageChange() // reuse to trigger fetchGoals
+  }
 
   const deposits = goal.deposits || []
   const saved = totalSaved(deposits)
@@ -164,6 +204,15 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div className="stat-label">{goal.name}</div>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            {/* Edit */}
+            <button
+              className={`icon-btn ${editing ? 'icon-btn-active' : ''}`}
+              onClick={() => { setEditing(e => !e); setEditError('') }}
+              title="Edit goal"
+            >
+              <Pencil size={13} />
+            </button>
+
             {/* Image upload */}
             <button
               className={`icon-btn ${goal.image_url ? 'icon-btn-active' : ''}`}
@@ -217,6 +266,45 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) 
         )}
         {uploadError && (
           <p className="error" style={{ marginTop: 4 }}>{uploadError}</p>
+        )}
+
+        {editing && (
+          <form onSubmit={handleEdit} style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+            <div className="field">
+              <label>Name</label>
+              <input value={editName} onChange={e => setEditName(e.target.value)} required autoFocus />
+            </div>
+            <div className="field">
+              <label>Target amount</label>
+              <input type="number" min="1" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)} required />
+            </div>
+            <div className="field">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <label>Timeframe</label>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text)', fontWeight: 500 }}>
+                  {editWeeks} {editWeeks === 1 ? 'week' : 'weeks'}
+                </span>
+              </div>
+              <input
+                type="range"
+                className="slider"
+                min={MIN_WEEKS}
+                max={MAX_WEEKS}
+                step={1}
+                value={editWeeks}
+                onChange={e => setEditWeeks(parseInt(e.target.value, 10))}
+              />
+              <div className="slider-meta">
+                <span>by {fmtEndDateStr(endDateFromWeeks(editWeeks))}</span>
+                <span>{fmt(Math.max(0, parseFloat(editAmount) || 0) / editWeeks, currency)} / week</span>
+              </div>
+            </div>
+            {editError && <p className="error">{editError}</p>}
+            <div className="row" style={{ marginTop: 12 }}>
+              <button type="button" className="btn btn-ghost" onClick={() => setEditing(false)}>Cancel</button>
+              <button type="submit" className="btn" disabled={editLoading}>{editLoading ? '...' : 'Save'}</button>
+            </div>
+          </form>
         )}
 
         <div className="stat-value" style={{ marginTop: 6 }}>
