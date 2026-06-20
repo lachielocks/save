@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PiggyBank, LogOut, Plus } from 'lucide-react'
+import { PiggyBank, Settings, Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import GoalCard from './GoalCard'
 import NewGoalForm from './NewGoalForm'
 
-export default function Dashboard({ session }) {
+export default function Dashboard({ session, onSettings }) {
   const [goals, setGoals] = useState([])
   const [activeGoalId, setActiveGoalId] = useState(null)
   const [showNewGoal, setShowNewGoal] = useState(false)
@@ -29,10 +29,6 @@ export default function Dashboard({ session }) {
     setLoading(false)
   }
 
-  async function signOut() {
-    await supabase.auth.signOut()
-  }
-
   async function handleNewGoal(goal) {
     await fetchGoals()
     setActiveGoalId(goal.id)
@@ -40,6 +36,11 @@ export default function Dashboard({ session }) {
   }
 
   async function handleDeposit() {
+    await fetchGoals()
+  }
+
+  async function handleDeleted() {
+    setActiveGoalId(null)
     await fetchGoals()
   }
 
@@ -52,9 +53,8 @@ export default function Dashboard({ session }) {
           <PiggyBank size={18} />
           Save
         </div>
-        <button className="signout" onClick={signOut}>
-          <LogOut size={13} />
-          Sign out
+        <button className="signout" onClick={onSettings}>
+          <Settings size={14} />
         </button>
       </div>
 
@@ -64,7 +64,12 @@ export default function Dashboard({ session }) {
           animate={{ opacity: 1 }}
           className="no-goals"
         >
-          <p style={{ marginBottom: 24 }}>No savings goals yet.</p>
+          <p style={{ marginBottom: 8 }}>
+            {session.user.user_metadata?.display_name
+              ? `Hey ${session.user.user_metadata.display_name} —`
+              : 'Hey —'}
+          </p>
+          <p style={{ marginBottom: 24, color: 'var(--muted)' }}>No savings goals yet.</p>
           <button className="btn" style={{ width: 'auto', padding: '10px 24px' }} onClick={() => setShowNewGoal(true)}>
             Create your first goal
           </button>
@@ -115,7 +120,7 @@ export default function Dashboard({ session }) {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
           >
-            <GoalCard goal={activeGoal} onDeposit={handleDeposit} />
+            <GoalCard goal={activeGoal} onDeposit={handleDeposit} onDeleted={handleDeleted} />
           </motion.div>
         ) : null}
       </AnimatePresence>

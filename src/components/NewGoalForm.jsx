@@ -1,12 +1,28 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
+const MIN_WEEKS = 1
+const MAX_WEEKS = 104 // 2 years
+
+function endDateFromWeeks(weeks) {
+  const d = new Date()
+  d.setDate(d.getDate() + weeks * 7)
+  return d
+}
+
+function fmtEndDate(date) {
+  return date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 export default function NewGoalForm({ userId, onCreated, onCancel }) {
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [weeks, setWeeks] = useState(12)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const weeklyAmount = amount ? (parseFloat(amount) / weeks).toFixed(2) : null
+  const endDate = endDateFromWeeks(weeks)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -17,7 +33,7 @@ export default function NewGoalForm({ userId, onCreated, onCancel }) {
       user_id: userId,
       name,
       goal_amount: parseFloat(amount),
-      end_date: endDate,
+      end_date: endDate.toISOString().split('T')[0],
     }).select().single()
 
     setLoading(false)
@@ -51,16 +67,33 @@ export default function NewGoalForm({ userId, onCreated, onCancel }) {
             required
           />
         </div>
+
         <div className="field">
-          <label>Target date</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <label>Timeframe</label>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text)', fontWeight: 500 }}>
+              {weeks} {weeks === 1 ? 'week' : 'weeks'}
+            </span>
+          </div>
           <input
-            type="date"
-            value={endDate}
-            min={new Date().toISOString().split('T')[0]}
-            onChange={e => setEndDate(e.target.value)}
-            required
+            type="range"
+            className="slider"
+            min={MIN_WEEKS}
+            max={MAX_WEEKS}
+            step={1}
+            value={weeks}
+            onChange={e => setWeeks(parseInt(e.target.value, 10))}
           />
+          <div className="slider-meta">
+            <span>by {fmtEndDate(endDate)}</span>
+            {weeklyAmount && (
+              <span>
+                {parseFloat(weeklyAmount).toLocaleString('en-AU', { style: 'currency', currency: 'AUD' })} / week
+              </span>
+            )}
+          </div>
         </div>
+
         {error && <p className="error">{error}</p>}
         <div className="row" style={{ marginTop: 20 }}>
           {onCancel && (
