@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Trash2, Share2, Check, X } from 'lucide-react'
+import { Trash2, Share2, Check, X, ImagePlus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useCurrency } from '../context/CurrencyContext'
 import CountUp from './CountUp'
+import TiltedCard from './TiltedCard'
 import {
   weeklyRequired, totalSaved, progressPercent,
   thisWeekDeposited, projectedDate, fmt,
@@ -13,10 +14,8 @@ function fmtDate(str) {
   return new Date(str).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// Extracts the currency symbol (e.g. "$", "€", "¥") from a currency code
 function getCurrencySymbol(currency) {
-  const parts = Intl.NumberFormat(undefined, { style: 'currency', currency })
-    .formatToParts(0)
+  const parts = Intl.NumberFormat(undefined, { style: 'currency', currency }).formatToParts(0)
   return parts.find(p => p.type === 'currency')?.value ?? currency
 }
 
@@ -68,6 +67,9 @@ export default function GoalCard({ goal, onDeposit, onDeleted }) {
   const [sharing, setSharing] = useState(false)
   const [isPublic, setIsPublic] = useState(goal.is_public || false)
   const [copied, setCopied] = useState(false)
+  const [imageUrl, setImageUrl] = useState(goal.image_url || null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
 
   const deposits = goal.deposits || []
   const saved = totalSaved(deposits)
@@ -116,12 +118,74 @@ export default function GoalCard({ goal, onDeposit, onDeleted }) {
     }
   }
 
+  async function handleImageChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+
+    const ext = file.name.split('.').pop()
+    const path = `${goal.id}.${ext}`
+
+    const { error: uploadErr } = await supabase.storage
+      .from('goal-images')
+      .upload(path, file, { upsert: true })
+
+    if (uploadErr) { setUploading(false); return }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('goal-images')
+      .getPublicUrl(path)
+
+    await supabase.from('goals').update({ image_url: publicUrl }).eq('id', goal.id)
+    setImageUrl(publicUrl)
+    setUploading(false)
+  }
+
   return (
     <>
+      {imageUrl && (
+        <div style={{ marginBottom: 12 }}>
+          <TiltedCard
+            imageSrc={imageUrl}
+            altText={goal.name}
+            captionText={goal.name}
+            containerHeight="260px"
+            containerWidth="100%"
+            imageHeight="220px"
+            imageWidth="220px"
+            rotateAmplitude={10}
+            scaleOnHover={1.08}
+            showMobileWarning={false}
+            showTooltip={true}
+            displayOverlayContent={true}
+            overlayContent={
+              <span className="tilted-card-overlay-text">{goal.name}</span>
+            }
+          />
+        </div>
+      )}
+
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div className="stat-label">{goal.name}</div>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            {/* Image upload */}
+            <button
+              className={`icon-btn ${imageUrl ? 'icon-btn-active' : ''}`}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              title={imageUrl ? 'Change image' : 'Add image'}
+            >
+              {uploading ? '…' : <ImagePlus size={13} />}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleImageChange}
+            />
+
             {/* Share */}
             <button
               className={`icon-btn ${isPublic ? 'icon-btn-active' : ''}`}
@@ -131,6 +195,7 @@ export default function GoalCard({ goal, onDeposit, onDeleted }) {
             >
               {copied ? <Check size={13} /> : <Share2 size={13} />}
             </button>
+
             {/* Delete */}
             {!confirmDelete ? (
               <button className="icon-btn" onClick={() => setConfirmDelete(true)} title="Delete goal">
