@@ -502,3 +502,21 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+.page-footer {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 40px;
+  padding-bottom: 24px;
+}
+
+.footer-link {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.footer-link:hover {
+  color: var(--text);
+}

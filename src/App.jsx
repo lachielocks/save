@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { supabase } from './lib/supabase'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { CurrencyProvider } from './context/CurrencyContext'
 import Landing from './components/Landing'
 import SignIn from './components/SignIn'
@@ -13,85 +15,116 @@ import Settings from './components/Settings'
 import PublicGoal from './components/PublicGoal'
 import './App.css'
 
-const PAGE_ORDER = ['landing', 'signin', 'signup', 'forgot', 'confirmed', 'reset', 'dashboard', 'settings']
-
-const variants = {
-  initial: (dir) => ({ opacity: 0, x: dir * 28 }),
-  animate: { opacity: 1, x: 0 },
-  exit: (dir) => ({ opacity: 0, x: dir * -28 }),
+const pageVariants = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
 }
 
-// Check for public goal share link
-const sharedGoalId = new URLSearchParams(window.location.search).get('goal')
+export function PageTransition({ children }) {
+  return (
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={{ duration: 0.18, ease: 'easeInOut' }}
+    >
+      {children}
+    </motion.div>
+  )
+}
 
-export default function App() {
-  const [session, setSession] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState('landing')
-  const [dir, setDir] = useState(1)
+function ProtectedRoute({ children }) {
+  const { session, loading } = useAuth()
+  if (loading) return null
+  if (!session) return <Navigate to="/login" replace />
+  return children
+}
 
-  function nav(to) {
-    const from = PAGE_ORDER.indexOf(page)
-    const toIdx = PAGE_ORDER.indexOf(to)
-    setDir(toIdx >= from ? 1 : -1)
-    setPage(to)
-  }
+function RootRoute() {
+  const [searchParams] = useSearchParams()
+  const goalId = searchParams.get('goal')
+  const { session, loading } = useAuth()
+
+  if (loading) return null
+  if (goalId) return <PublicGoal goalId={goalId} />
+  if (session) return <Navigate to="/goals" replace />
+  return <Landing />
+}
+
+// Listens to Supabase auth events and navigates accordingly
+function AuthEventHandler() {
+  const navigate = useNavigate()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
-      setSession(s)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
-        setDir(1); setPage('reset')
+        navigate('/reset')
       } else if (event === 'SIGNED_IN') {
         const hash = window.location.hash
         if (hash.includes('type=signup') || hash.includes('type=email_change')) {
           history.replaceState(null, '', window.location.pathname)
-          setDir(1); setPage('confirmed')
+          navigate('/confirmed')
         } else {
-          setDir(1); setPage('dashboard')
+          navigate('/goals')
         }
       } else if (event === 'SIGNED_OUT') {
-        setDir(-1); setPage('landing')
+        navigate('/')
       }
     })
-
     return () => subscription.unsubscribe()
-  }, [])
+  }, [navigate])
 
-  // Public share view — no auth required
-  if (sharedGoalId) return <PublicGoal goalId={sharedGoalId} />
+  return null
+}
 
+function AnimatedRoutes() {
+  const location = useLocation()
+  const { session } = useAuth()
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<RootRoute />} />
+        <Route path="/login" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/forgot" element={<ForgotPassword />} />
+        <Route path="/reset" element={<ResetPassword />} />
+        <Route path="/confirmed" element={<Confirmed />} />
+        <Route path="/goals" element={
+          <ProtectedRoute><Dashboard /></ProtectedRoute>
+        } />
+        <Route path="/create" element={
+          <ProtectedRoute><Dashboard showCreate /></ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute><Settings /></ProtectedRoute>
+        } />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
+  )
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppWithAuth />
+    </AuthProvider>
+  )
+}
+
+function AppWithAuth() {
+  const { session, loading } = useAuth()
   if (loading) return null
-
-  const currentPage = session && page === 'landing' ? 'dashboard' : page
 
   return (
     <CurrencyProvider session={session}>
-      <AnimatePresence mode="wait" custom={dir}>
-        <motion.div
-          key={currentPage}
-          custom={dir}
-          variants={variants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-          transition={{ duration: 0.2, ease: 'easeInOut' }}
-        >
-          {currentPage === 'landing'   && <Landing onSignIn={() => nav('signin')} onSignUp={() => nav('signup')} />}
-          {currentPage === 'signin'    && <SignIn onSignUp={() => nav('signup')} onBack={() => nav('landing')} onForgot={() => nav('forgot')} />}
-          {currentPage === 'signup'    && <SignUp onSignIn={() => nav('signin')} onBack={() => nav('landing')} />}
-          {currentPage === 'forgot'    && <ForgotPassword onBack={() => nav('signin')} />}
-          {currentPage === 'reset'     && <ResetPassword onDone={() => nav('signin')} />}
-          {currentPage === 'confirmed' && <Confirmed onSignIn={() => nav('signin')} />}
-          {currentPage === 'dashboard' && <Dashboard session={session} onSettings={() => nav('settings')} />}
-          {currentPage === 'settings'  && <Settings session={session} onBack={() => nav('dashboard')} />}
-        </motion.div>
-      </AnimatePresence>
+      <BrowserRouter>
+        <AuthEventHandler />
+        <AnimatedRoutes />
+      </BrowserRouter>
     </CurrencyProvider>
   )
 }

@@ -1,7 +1,11 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, PiggyBank, Eye, EyeOff, LogOut, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useCurrency } from '../context/CurrencyContext'
+import { useAuth } from '../context/AuthContext'
+import { PageTransition } from '../App'
+import Footer from './Footer'
 
 const CURRENCIES = [
   { code: 'AUD', label: 'AUD — Australian Dollar' },
@@ -34,7 +38,9 @@ function Section({ title, children }) {
   )
 }
 
-export default function Settings({ session, onBack }) {
+export default function Settings() {
+  const { session } = useAuth()
+  const navigate = useNavigate()
   const meta = session.user.user_metadata || {}
   const { currency, setCurrency } = useCurrency()
 
@@ -110,9 +116,10 @@ export default function Settings({ session, onBack }) {
   }
 
   return (
+    <PageTransition>
     <div className="page auth-page" style={{ maxWidth: 480 }}>
       <div className="auth-header">
-        <button className="back-btn" onClick={onBack}>
+        <button className="back-btn" onClick={() => navigate('/goals')}>
           <ArrowLeft size={15} />
         </button>
         <div className="wordmark" style={{ margin: 0 }}>
@@ -241,7 +248,9 @@ export default function Settings({ session, onBack }) {
           </div>
         )}
       </Section>
+      <Footer />
     </div>
+    </PageTransition>
   )
 }
 
