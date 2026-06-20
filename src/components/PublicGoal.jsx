@@ -125,7 +125,7 @@ export default function PublicGoal({ goalId }) {
         )}
 
         <p style={{ fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'center', marginTop: 24 }}>
-          Powered by Save
+          <a href="https://save.lachiethurlow.com" className="footer-link">Powered by Save</a>
         </p>
       </motion.div>
     </div>
