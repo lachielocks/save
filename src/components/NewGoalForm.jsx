@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useCurrency } from '../context/CurrencyContext'
+import { fmt } from '../lib/calculations'
 
 const MIN_WEEKS = 1
-const MAX_WEEKS = 104 // 2 years
+const MAX_WEEKS = 104
 
 function endDateFromWeeks(weeks) {
   const d = new Date()
@@ -15,30 +17,51 @@ function fmtEndDate(date) {
 }
 
 export default function NewGoalForm({ userId, onCreated, onCancel }) {
+  const { currency } = useCurrency()
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
+  const [alreadySaved, setAlreadySaved] = useState('')
   const [weeks, setWeeks] = useState(12)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const weeklyAmount = amount ? (parseFloat(amount) / weeks).toFixed(2) : null
+  const target = parseFloat(amount) || 0
+  const saved = parseFloat(alreadySaved) || 0
+  const remaining = Math.max(0, target - saved)
+  const weeklyAmount = target ? remaining / weeks : null
   const endDate = endDateFromWeeks(weeks)
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+
+    if (saved >= target && target > 0) {
+      return setError("Already saved amount can't exceed the target.")
+    }
+
     setLoading(true)
 
-    const { data, error } = await supabase.from('goals').insert({
+    const { data: goal, error: goalErr } = await supabase.from('goals').insert({
       user_id: userId,
       name,
-      goal_amount: parseFloat(amount),
+      goal_amount: target,
       end_date: endDate.toISOString().split('T')[0],
     }).select().single()
 
+    if (goalErr) { setLoading(false); return setError(goalErr.message) }
+
+    // Insert the initial deposit if provided
+    if (saved > 0) {
+      const { error: depErr } = await supabase.from('deposits').insert({
+        goal_id: goal.id,
+        amount: saved,
+        note: 'Already saved',
+      })
+      if (depErr) { setLoading(false); return setError(depErr.message) }
+    }
+
     setLoading(false)
-    if (error) return setError(error.message)
-    onCreated(data)
+    onCreated(goal)
   }
 
   return (
@@ -67,6 +90,17 @@ export default function NewGoalForm({ userId, onCreated, onCancel }) {
             required
           />
         </div>
+        <div className="field">
+          <label>Already saved</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={alreadySaved}
+            onChange={e => setAlreadySaved(e.target.value)}
+            placeholder="0"
+          />
+        </div>
 
         <div className="field">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -86,10 +120,8 @@ export default function NewGoalForm({ userId, onCreated, onCancel }) {
           />
           <div className="slider-meta">
             <span>by {fmtEndDate(endDate)}</span>
-            {weeklyAmount && (
-              <span>
-                {parseFloat(weeklyAmount).toLocaleString('en-AU', { style: 'currency', currency: 'AUD' })} / week
-              </span>
+            {weeklyAmount !== null && (
+              <span>{fmt(weeklyAmount, currency)} / week</span>
             )}
           </div>
         </div>
