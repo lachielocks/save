@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PiggyBank, Settings, Plus } from 'lucide-react'
@@ -45,6 +45,7 @@ export default function Dashboard({ showCreate = false }) {
       .from('goals')
       .select('*, deposits(*)')
       .eq('user_id', session.user.id)
+      .is('archived_at', null)
       .order('created_at', { ascending: false })
 
     if (data) {
@@ -75,6 +76,18 @@ export default function Dashboard({ showCreate = false }) {
 
   const sorted = sortGoals(goals, sort)
   const activeGoal = goals.find(g => g.id === activeGoalId)
+
+  const touchStartX = useRef(null)
+  function onTouchStart(e) { touchStartX.current = e.touches[0].clientX }
+  function onTouchEnd(e) {
+    if (touchStartX.current === null) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    touchStartX.current = null
+    if (Math.abs(dx) < 50) return
+    const idx = sorted.findIndex(g => g.id === activeGoalId)
+    if (dx < 0 && idx < sorted.length - 1) setActiveGoalId(sorted[idx + 1].id)
+    if (dx > 0 && idx > 0) setActiveGoalId(sorted[idx - 1].id)
+  }
 
   return (
     <PageTransition>
@@ -132,6 +145,7 @@ export default function Dashboard({ showCreate = false }) {
           </div>
         )}
 
+        <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <AnimatePresence mode="wait">
           {activeGoal?.image_url && !showNewGoal && (
             <motion.div
@@ -196,6 +210,7 @@ export default function Dashboard({ showCreate = false }) {
           ) : null}
         </AnimatePresence>
 
+        </div>
         <Footer />
       </div>
     </PageTransition>

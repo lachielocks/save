@@ -63,7 +63,10 @@ function AuthEventHandler() {
         navigate('/reset')
       } else if (event === 'SIGNED_IN') {
         const hash = window.location.hash
-        if (hash.includes('type=signup') || hash.includes('type=email_change')) {
+        if (hash.includes('type=signup')) {
+          history.replaceState(null, '', window.location.pathname)
+          navigate('/create')
+        } else if (hash.includes('type=email_change')) {
           history.replaceState(null, '', window.location.pathname)
           navigate('/confirmed')
         } else {

@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Trash2, Share2, Check, X, ImagePlus, Pencil } from 'lucide-react'
+import { Trash2, Share2, Check, X, ImagePlus, Pencil, Archive } from 'lucide-react'
+import confetti from 'canvas-confetti'
 import { supabase } from '../lib/supabase'
 import { useCurrency } from '../context/CurrencyContext'
 import CountUp from './CountUp'
@@ -94,6 +95,25 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) 
   const [editWeeks, setEditWeeks] = useState(() => weeksFromDate(goal.end_date))
   const [editError, setEditError] = useState('')
   const [editLoading, setEditLoading] = useState(false)
+  const [archiving, setArchiving] = useState(false)
+  const wasComplete = useRef(false)
+
+  const deposits = goal.deposits || []
+  const saved = totalSaved(deposits)
+  const isComplete = saved >= goal.goal_amount
+
+  useEffect(() => {
+    if (isComplete && !wasComplete.current) {
+      confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } })
+    }
+    wasComplete.current = isComplete
+  }, [isComplete])
+
+  async function handleArchive() {
+    setArchiving(true)
+    await supabase.from('goals').update({ archived_at: new Date().toISOString() }).eq('id', goal.id)
+    onDeleted()
+  }
 
   async function handleEdit(e) {
     e.preventDefault()
@@ -110,13 +130,10 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) 
     onImageChange() // reuse to trigger fetchGoals
   }
 
-  const deposits = goal.deposits || []
-  const saved = totalSaved(deposits)
   const prevSaved = useRef(saved)
   const symbol = getCurrencySymbol(currency)
   const progress = progressPercent(goal.goal_amount, deposits)
   const weeklyNeeded = weeklyRequired({ goalAmount: goal.goal_amount, endDate: goal.end_date, deposits })
-  const isComplete = saved >= goal.goal_amount
   const weekSaved = thisWeekDeposited(deposits)
   const delta = weekSaved - weeklyNeeded
   const projection = projectedDate(goal.goal_amount, deposits)
@@ -134,6 +151,7 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) 
     if (error) return setError(error.message)
     setAmount('')
     setNote('')
+    navigator.vibrate?.(40)
     onDeposit()
   }
 
@@ -212,6 +230,18 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) 
             >
               <Pencil size={13} />
             </button>
+
+            {/* Archive (only when complete) */}
+            {isComplete && (
+              <button
+                className="icon-btn"
+                onClick={handleArchive}
+                disabled={archiving}
+                title="Archive goal"
+              >
+                <Archive size={13} />
+              </button>
+            )}
 
             {/* Image upload */}
             <button
