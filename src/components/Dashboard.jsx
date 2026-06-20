@@ -2,18 +2,38 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PiggyBank, Settings, Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { totalSaved, progressPercent } from '../lib/calculations'
 import GoalCard from './GoalCard'
 import NewGoalForm from './NewGoalForm'
+
+const SORT_OPTIONS = [
+  { value: 'created', label: 'Created' },
+  { value: 'name', label: 'Name' },
+  { value: 'deadline', label: 'Deadline' },
+  { value: 'progress', label: 'Progress' },
+]
+
+function sortGoals(goals, sort) {
+  return [...goals].sort((a, b) => {
+    if (sort === 'name') return a.name.localeCompare(b.name)
+    if (sort === 'deadline') return new Date(a.end_date) - new Date(b.end_date)
+    if (sort === 'progress') {
+      const pa = progressPercent(a.goal_amount, a.deposits || [])
+      const pb = progressPercent(b.goal_amount, b.deposits || [])
+      return pa - pb
+    }
+    return new Date(b.created_at) - new Date(a.created_at)
+  })
+}
 
 export default function Dashboard({ session, onSettings }) {
   const [goals, setGoals] = useState([])
   const [activeGoalId, setActiveGoalId] = useState(null)
   const [showNewGoal, setShowNewGoal] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [sort, setSort] = useState(() => localStorage.getItem('goalSort') || 'created')
 
-  useEffect(() => {
-    fetchGoals()
-  }, [])
+  useEffect(() => { fetchGoals() }, [])
 
   async function fetchGoals() {
     const { data } = await supabase
@@ -29,21 +49,25 @@ export default function Dashboard({ session, onSettings }) {
     setLoading(false)
   }
 
+  function changeSort(s) {
+    setSort(s)
+    localStorage.setItem('goalSort', s)
+  }
+
   async function handleNewGoal(goal) {
     await fetchGoals()
     setActiveGoalId(goal.id)
     setShowNewGoal(false)
   }
 
-  async function handleDeposit() {
-    await fetchGoals()
-  }
+  async function handleDeposit() { await fetchGoals() }
 
   async function handleDeleted() {
     setActiveGoalId(null)
     await fetchGoals()
   }
 
+  const sorted = sortGoals(goals, sort)
   const activeGoal = goals.find(g => g.id === activeGoalId)
 
   return (
@@ -59,11 +83,7 @@ export default function Dashboard({ session, onSettings }) {
       </div>
 
       {!loading && goals.length === 0 && !showNewGoal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="no-goals"
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="no-goals">
           <p style={{ marginBottom: 8 }}>
             {session.user.user_metadata?.display_name
               ? `Hey ${session.user.user_metadata.display_name} —`
@@ -77,24 +97,34 @@ export default function Dashboard({ session, onSettings }) {
       )}
 
       {goals.length > 0 && (
-        <div className="goal-tabs">
-          {goals.map(g => (
-            <button
-              key={g.id}
-              className={`goal-tab ${g.id === activeGoalId ? 'active' : ''}`}
-              onClick={() => { setActiveGoalId(g.id); setShowNewGoal(false) }}
+        <>
+          <div className="tabs-bar">
+            <div className="goal-tabs">
+              {sorted.map(g => (
+                <button
+                  key={g.id}
+                  className={`goal-tab ${g.id === activeGoalId ? 'active' : ''}`}
+                  onClick={() => { setActiveGoalId(g.id); setShowNewGoal(false) }}
+                >
+                  {g.name}
+                </button>
+              ))}
+              <button className="goal-tab" onClick={() => setShowNewGoal(true)} title="New goal">
+                <Plus size={13} />
+              </button>
+            </div>
+            <select
+              className="sort-select"
+              value={sort}
+              onChange={e => changeSort(e.target.value)}
+              title="Sort goals"
             >
-              {g.name}
-            </button>
-          ))}
-          <button
-            className="goal-tab"
-            onClick={() => setShowNewGoal(true)}
-            title="New goal"
-          >
-            <Plus size={13} />
-          </button>
-        </div>
+              {SORT_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        </>
       )}
 
       <AnimatePresence mode="wait">
@@ -106,11 +136,7 @@ export default function Dashboard({ session, onSettings }) {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
           >
-            <NewGoalForm
-              userId={session.user.id}
-              onCreated={handleNewGoal}
-              onCancel={() => setShowNewGoal(false)}
-            />
+            <NewGoalForm userId={session.user.id} onCreated={handleNewGoal} onCancel={() => setShowNewGoal(false)} />
           </motion.div>
         ) : activeGoal ? (
           <motion.div
