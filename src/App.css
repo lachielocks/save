@@ -301,11 +301,58 @@
   padding: 40px 0;
 }
 
+.tabs-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
 .goal-tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 20px;
   flex-wrap: wrap;
+  flex: 1;
+}
+
+.sort-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  padding: 5px 8px;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.sort-select:hover {
+  border-color: var(--muted);
+  color: var(--text);
+}
+
+.field-select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  width: 100%;
+  outline: none;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.field-select:focus {
+  border-color: var(--muted);
+}
+
+.icon-btn-active {
+  color: var(--green);
 }
 
 .goal-tab {

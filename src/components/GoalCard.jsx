@@ -1,46 +1,94 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Share2, Check, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { weeklyRequired, totalSaved, progressPercent } from '../lib/calculations'
-
-function fmt(n) {
-  return n.toLocaleString('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 2 })
-}
+import { useCurrency } from '../context/CurrencyContext'
+import CountUp from './CountUp'
+import {
+  weeklyRequired, totalSaved, progressPercent,
+  thisWeekDeposited, projectedDate, fmt,
+} from '../lib/calculations'
 
 function fmtDate(str) {
   return new Date(str).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+// Extracts the currency symbol (e.g. "$", "€", "¥") from a currency code
+function getCurrencySymbol(currency) {
+  const parts = Intl.NumberFormat(undefined, { style: 'currency', currency })
+    .formatToParts(0)
+  return parts.find(p => p.type === 'currency')?.value ?? currency
+}
+
+function DepositRow({ deposit, currency, onDelete }) {
+  const [confirm, setConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete() {
+    setDeleting(true)
+    await supabase.from('deposits').delete().eq('id', deposit.id)
+    onDelete()
+  }
+
+  return (
+    <div className="deposit-item">
+      <div>
+        <div className="deposit-amount">{fmt(deposit.amount, currency)}</div>
+        {deposit.note && <div className="deposit-date">{deposit.note}</div>}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="deposit-date">{fmtDate(deposit.created_at)}</div>
+        {!confirm ? (
+          <button className="icon-btn" onClick={() => setConfirm(true)} title="Delete deposit">
+            <X size={12} />
+          </button>
+        ) : (
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button className="icon-btn icon-btn-danger" onClick={handleDelete} disabled={deleting}>
+              <Check size={12} />
+            </button>
+            <button className="icon-btn" onClick={() => setConfirm(false)}>
+              <X size={12} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function GoalCard({ goal, onDeposit, onDeleted }) {
+  const { currency } = useCurrency()
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [sharing, setSharing] = useState(false)
+  const [isPublic, setIsPublic] = useState(goal.is_public || false)
+  const [copied, setCopied] = useState(false)
 
   const deposits = goal.deposits || []
   const saved = totalSaved(deposits)
+  const prevSaved = useRef(saved)
+  const symbol = getCurrencySymbol(currency)
   const progress = progressPercent(goal.goal_amount, deposits)
-  const weeklyNeeded = weeklyRequired({
-    goalAmount: goal.goal_amount,
-    endDate: goal.end_date,
-    deposits,
-  })
+  const weeklyNeeded = weeklyRequired({ goalAmount: goal.goal_amount, endDate: goal.end_date, deposits })
   const isComplete = saved >= goal.goal_amount
+  const weekSaved = thisWeekDeposited(deposits)
+  const delta = weekSaved - weeklyNeeded
+  const projection = projectedDate(goal.goal_amount, deposits)
 
   async function handleDeposit(e) {
     e.preventDefault()
     setError('')
     setLoading(true)
-
     const { error } = await supabase.from('deposits').insert({
       goal_id: goal.id,
       amount: parseFloat(amount),
       note: note || null,
     })
-
     setLoading(false)
     if (error) return setError(error.message)
     setAmount('')
@@ -54,34 +102,71 @@ export default function GoalCard({ goal, onDeposit, onDeleted }) {
     onDeleted()
   }
 
+  async function toggleShare() {
+    const next = !isPublic
+    setSharing(true)
+    await supabase.from('goals').update({ is_public: next }).eq('id', goal.id)
+    setIsPublic(next)
+    setSharing(false)
+    if (next) {
+      const url = `${window.location.origin}${window.location.pathname}?goal=${goal.id}`
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    }
+  }
+
   return (
     <>
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div className="stat-label">{goal.name}</div>
-          {!confirmDelete ? (
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            {/* Share */}
             <button
-              className="icon-btn"
-              onClick={() => setConfirmDelete(true)}
-              title="Delete goal"
+              className={`icon-btn ${isPublic ? 'icon-btn-active' : ''}`}
+              onClick={toggleShare}
+              disabled={sharing}
+              title={isPublic ? 'Public — click to make private' : 'Share goal'}
             >
-              <Trash2 size={13} />
+              {copied ? <Check size={13} /> : <Share2 size={13} />}
             </button>
-          ) : (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>Delete?</span>
-              <button className="icon-btn icon-btn-danger" onClick={handleDelete} disabled={deleting}>
-                {deleting ? '...' : 'Yes'}
+            {/* Delete */}
+            {!confirmDelete ? (
+              <button className="icon-btn" onClick={() => setConfirmDelete(true)} title="Delete goal">
+                <Trash2 size={13} />
               </button>
-              <button className="icon-btn" onClick={() => setConfirmDelete(false)}>No</button>
-            </div>
-          )}
+            ) : (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>Delete?</span>
+                <button className="icon-btn icon-btn-danger" onClick={handleDelete} disabled={deleting}>
+                  <Check size={12} />
+                </button>
+                <button className="icon-btn" onClick={() => setConfirmDelete(false)}>
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
+        {copied && (
+          <p style={{ fontSize: '0.75rem', color: 'var(--green)', marginTop: 4 }}>
+            Link copied to clipboard
+          </p>
+        )}
+
         <div className="stat-value" style={{ marginTop: 6 }}>
-          {fmt(saved)}
+          <span>{symbol}</span>
+          <CountUp
+            from={prevSaved.current}
+            to={saved}
+            separator=","
+            duration={1}
+            onEnd={() => { prevSaved.current = saved }}
+          />
           <span style={{ fontSize: '1rem', color: 'var(--muted)', fontWeight: 400 }}>
-            {' '}/ {fmt(goal.goal_amount)}
+            {' '}/ {fmt(goal.goal_amount, currency)}
           </span>
         </div>
 
@@ -100,10 +185,37 @@ export default function GoalCard({ goal, onDeposit, onDeleted }) {
         </div>
 
         {!isComplete && (
-          <div style={{ marginTop: 20, padding: '16px', background: 'var(--bg)', borderRadius: 8 }}>
-            <div className="stat-label">Weekly target</div>
-            <div style={{ fontSize: '1.3rem', fontWeight: 600, letterSpacing: '-0.02em', marginTop: 2 }}>
-              {fmt(weeklyNeeded)}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 16 }}>
+            <div style={{ padding: '14px', background: 'var(--bg)', borderRadius: 8 }}>
+              <div className="stat-label">Weekly target</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 600, letterSpacing: '-0.02em', marginTop: 2 }}>
+                {fmt(weeklyNeeded, currency)}
+              </div>
+            </div>
+            <div style={{ padding: '14px', background: 'var(--bg)', borderRadius: 8 }}>
+              <div className="stat-label">This week</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 600, letterSpacing: '-0.02em', marginTop: 2 }}>
+                {fmt(weekSaved, currency)}
+              </div>
+              {weekSaved > 0 && (
+                <div style={{ fontSize: '0.72rem', marginTop: 3, color: delta >= 0 ? 'var(--green)' : 'var(--muted)' }}>
+                  {delta >= 0
+                    ? `${fmt(delta, currency)} ahead`
+                    : `${fmt(Math.abs(delta), currency)} behind`}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!isComplete && projection && (
+          <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--bg)', borderRadius: 8 }}>
+            <div className="stat-label" style={{ marginBottom: 2 }}>At your current rate</div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+              You'll reach this goal by{' '}
+              <span style={{ color: 'var(--text)', fontWeight: 500 }}>
+                {projection.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
             </div>
           </div>
         )}
@@ -155,13 +267,7 @@ export default function GoalCard({ goal, onDeposit, onDeleted }) {
             {[...deposits]
               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
               .map(d => (
-                <div key={d.id} className="deposit-item">
-                  <div>
-                    <div className="deposit-amount">{fmt(d.amount)}</div>
-                    {d.note && <div className="deposit-date">{d.note}</div>}
-                  </div>
-                  <div className="deposit-date">{fmtDate(d.created_at)}</div>
-                </div>
+                <DepositRow key={d.id} deposit={d} currency={currency} onDelete={onDeposit} />
               ))}
           </div>
         </div>

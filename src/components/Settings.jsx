@@ -1,6 +1,20 @@
 import { useState } from 'react'
 import { ArrowLeft, PiggyBank, Eye, EyeOff, LogOut, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useCurrency } from '../context/CurrencyContext'
+
+const CURRENCIES = [
+  { code: 'AUD', label: 'AUD — Australian Dollar' },
+  { code: 'USD', label: 'USD — US Dollar' },
+  { code: 'EUR', label: 'EUR — Euro' },
+  { code: 'GBP', label: 'GBP — British Pound' },
+  { code: 'NZD', label: 'NZD — New Zealand Dollar' },
+  { code: 'CAD', label: 'CAD — Canadian Dollar' },
+  { code: 'SGD', label: 'SGD — Singapore Dollar' },
+  { code: 'JPY', label: 'JPY — Japanese Yen' },
+  { code: 'CHF', label: 'CHF — Swiss Franc' },
+  { code: 'HKD', label: 'HKD — Hong Kong Dollar' },
+]
 
 function Field({ label, children }) {
   return (
@@ -22,6 +36,7 @@ function Section({ title, children }) {
 
 export default function Settings({ session, onBack }) {
   const meta = session.user.user_metadata || {}
+  const { currency, setCurrency } = useCurrency()
 
   const [name, setName] = useState(meta.display_name || '')
   const [email, setEmail] = useState(session.user.email || '')
@@ -174,6 +189,23 @@ export default function Settings({ session, onBack }) {
             {loading.password ? '...' : 'Update password'}
           </button>
         </form>
+      </Section>
+
+      <Section title="Currency">
+        <Field label="Display currency">
+          <select
+            className="field-select"
+            value={currency}
+            onChange={e => setCurrency(e.target.value)}
+          >
+            {CURRENCIES.map(c => (
+              <option key={c.code} value={c.code}>{c.label}</option>
+            ))}
+          </select>
+        </Field>
+        <p style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 8 }}>
+          Changes how amounts are displayed. Deposits are stored as plain numbers.
+        </p>
       </Section>
 
       <Section title="Account">
