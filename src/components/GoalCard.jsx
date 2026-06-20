@@ -163,10 +163,10 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) 
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             {/* Image upload */}
             <button
-              className={`icon-btn ${imageUrl ? 'icon-btn-active' : ''}`}
+              className={`icon-btn ${goal.image_url ? 'icon-btn-active' : ''}`}
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              title={imageUrl ? 'Change image' : 'Add image'}
+              title={goal.image_url ? 'Change image' : 'Add image'}
             >
               {uploading ? '…' : <ImagePlus size={13} />}
             </button>
