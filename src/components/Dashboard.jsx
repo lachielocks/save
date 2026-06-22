@@ -43,7 +43,7 @@ export default function Dashboard({ showCreate = false }) {
   async function fetchGoals() {
     const { data } = await supabase
       .from('goals')
-      .select('*, deposits(*)')
+      .select('*, deposits(*), goal_notes(*)')
       .eq('user_id', session.user.id)
       .is('archived_at', null)
       .order('created_at', { ascending: false })
@@ -205,6 +205,7 @@ export default function Dashboard({ showCreate = false }) {
                 onDeposit={handleDeposit}
                 onDeleted={handleDeleted}
                 onImageChange={fetchGoals}
+                onNotesChange={fetchGoals}
               />
             </motion.div>
           ) : null}

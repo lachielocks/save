@@ -520,3 +520,64 @@
 .footer-link:hover {
   color: var(--text);
 }
+
+/* Goal notes */
+.note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.note-updated {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+.note-textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--text);
+  width: 100%;
+  outline: none;
+  resize: vertical;
+  min-height: 160px;
+  line-height: 1.6;
+  font-family: inherit;
+  font-size: inherit;
+  transition: border-color 0.15s;
+}
+
+.note-textarea:focus {
+  border-color: var(--muted);
+}
+
+.note-content {
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.note-content p {
+  margin-bottom: 8px;
+}
+
+.note-content p:last-child {
+  margin-bottom: 0;
+}
+
+.note-image {
+  display: block;
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 12px 0;
+  border: 1px solid var(--border);
+}
+
+.note-empty {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.6;
+}

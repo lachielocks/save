@@ -5,6 +5,7 @@ import confetti from 'canvas-confetti'
 import { supabase } from '../lib/supabase'
 import { useCurrency } from '../context/CurrencyContext'
 import CountUp from './CountUp'
+import GoalNotes from './GoalNotes'
 import {
   weeklyRequired, totalSaved, progressPercent,
   thisWeekDeposited, projectedDate, fmt,
@@ -74,7 +75,7 @@ function fmtEndDateStr(isoStr) {
   return new Date(isoStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) {
+export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange, onNotesChange }) {
   const { currency } = useCurrency()
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
@@ -407,6 +408,12 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange }) 
           </div>
         )}
       </div>
+
+      <GoalNotes
+        goalId={goal.id}
+        note={goal.goal_notes?.[0]}
+        onSaved={onNotesChange}
+      />
 
       {!isComplete && (
         <div className="card">
