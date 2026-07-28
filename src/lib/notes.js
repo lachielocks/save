@@ -16,7 +16,7 @@ export async function uploadNoteImage(goalId, file) {
 
   const { error } = await supabase.storage
     .from('goal-note-images')
-    .upload(path, file, { contentType: file.type })
+    .upload(path, file, { contentType: file.type, upsert: true })
 
   if (error) throw error
 

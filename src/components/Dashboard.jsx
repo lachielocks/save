@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PiggyBank, Settings, Plus } from 'lucide-react'
+import { PiggyBank, Settings, Plus, Archive } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { totalSaved, progressPercent } from '../lib/calculations'
@@ -97,9 +97,14 @@ export default function Dashboard({ showCreate = false }) {
             <PiggyBank size={18} />
             Save
           </div>
-          <button className="signout" onClick={() => navigate('/settings')}>
-            <Settings size={14} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="signout" onClick={() => navigate('/archived')} title="Archived goals">
+              <Archive size={14} />
+            </button>
+            <button className="signout" onClick={() => navigate('/settings')} title="Settings">
+              <Settings size={14} />
+            </button>
+          </div>
         </div>
 
         {!loading && goals.length === 0 && !showNewGoal && (

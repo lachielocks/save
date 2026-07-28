@@ -56,7 +56,7 @@ export default function ArchivedGoals() {
     <PageTransition>
       <div className="page">
         <div className="auth-header" style={{ marginBottom: 40 }}>
-          <button className="back-btn" onClick={() => navigate('/settings')}>
+          <button className="back-btn" onClick={() => navigate('/goals')}>
             <ArrowLeft size={15} />
           </button>
           <div className="wordmark" style={{ margin: 0 }}>

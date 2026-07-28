@@ -195,16 +195,23 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange, on
     if (!file) return
     setUploading(true)
     setUploadError('')
+    e.target.value = ''
 
     const ext = file.name.split('.').pop().toLowerCase()
     const path = `${goal.id}.${ext}`
 
-    // Remove any existing file first so we only need INSERT, not UPDATE
-    await supabase.storage.from('goal-images').remove([path])
+    // Clear any prior image for this goal (may have a different extension)
+    const { data: existing } = await supabase.storage.from('goal-images').list('', {
+      search: goal.id,
+    })
+    const stale = (existing || [])
+      .filter(f => f.name === path || f.name.startsWith(`${goal.id}.`))
+      .map(f => f.name)
+    if (stale.length) await supabase.storage.from('goal-images').remove(stale)
 
     const { error: uploadErr } = await supabase.storage
       .from('goal-images')
-      .upload(path, file, { contentType: file.type })
+      .upload(path, file, { contentType: file.type, upsert: true })
 
     if (uploadErr) {
       setUploadError(uploadErr.message)
@@ -216,9 +223,12 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange, on
       .from('goal-images')
       .getPublicUrl(path)
 
+    // Bust CDN cache when replacing an image at the same path
+    const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`
+
     const { error: updateErr } = await supabase
       .from('goals')
-      .update({ image_url: publicUrl })
+      .update({ image_url: cacheBustedUrl })
       .eq('id', goal.id)
 
     if (updateErr) {
