@@ -114,7 +114,9 @@ export default function PublicGoal({ goalId }) {
                 .map(d => (
                   <div key={d.id} className="deposit-item">
                     <div>
-                      <div className="deposit-amount">{fmt(d.amount, currency)}</div>
+                      <div className={`deposit-amount${d.amount < 0 ? ' deposit-amount-neg' : ''}`}>
+                        {fmt(d.amount, currency)}
+                      </div>
                       {d.note && <div className="deposit-date">{d.note}</div>}
                     </div>
                     <div className="deposit-date">{fmtDate(d.created_at)}</div>

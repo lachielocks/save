@@ -259,6 +259,10 @@
   color: var(--green);
 }
 
+.deposit-amount-neg {
+  color: var(--red);
+}
+
 .deposit-date {
   font-size: 0.8rem;
   color: var(--muted);

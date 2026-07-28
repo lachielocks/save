@@ -12,6 +12,7 @@ import ResetPassword from './components/ResetPassword'
 import Confirmed from './components/Confirmed'
 import Dashboard from './components/Dashboard'
 import Settings from './components/Settings'
+import ArchivedGoals from './components/ArchivedGoals'
 import PublicGoal from './components/PublicGoal'
 import './App.css'
 
@@ -104,6 +105,9 @@ function AnimatedRoutes() {
         } />
         <Route path="/settings" element={
           <ProtectedRoute><Settings /></ProtectedRoute>
+        } />
+        <Route path="/archived" element={
+          <ProtectedRoute><ArchivedGoals /></ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

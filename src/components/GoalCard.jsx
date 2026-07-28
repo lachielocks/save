@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Trash2, Share2, Check, X, ImagePlus, Pencil, Archive } from 'lucide-react'
+import { Trash2, Share2, Check, X, ImagePlus, Pencil, Archive, ArchiveRestore } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { supabase } from '../lib/supabase'
 import { useCurrency } from '../context/CurrencyContext'
@@ -33,7 +33,9 @@ function DepositRow({ deposit, currency, onDelete }) {
   return (
     <div className="deposit-item">
       <div>
-        <div className="deposit-amount">{fmt(deposit.amount, currency)}</div>
+        <div className={`deposit-amount${deposit.amount < 0 ? ' deposit-amount-neg' : ''}`}>
+          {fmt(deposit.amount, currency)}
+        </div>
         {deposit.note && <div className="deposit-date">{deposit.note}</div>}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -75,7 +77,7 @@ function fmtEndDateStr(isoStr) {
   return new Date(isoStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange, onNotesChange }) {
+export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange, onNotesChange, onUnarchived }) {
   const { currency } = useCurrency()
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
@@ -97,23 +99,31 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange, on
   const [editError, setEditError] = useState('')
   const [editLoading, setEditLoading] = useState(false)
   const [archiving, setArchiving] = useState(false)
-  const wasComplete = useRef(false)
+  const isArchived = Boolean(goal.archived_at)
+  const wasComplete = useRef(isArchived)
 
   const deposits = goal.deposits || []
   const saved = totalSaved(deposits)
   const isComplete = saved >= goal.goal_amount
 
   useEffect(() => {
-    if (isComplete && !wasComplete.current) {
+    if (isComplete && !wasComplete.current && !isArchived) {
       confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } })
     }
     wasComplete.current = isComplete
-  }, [isComplete])
+  }, [isComplete, isArchived])
 
   async function handleArchive() {
     setArchiving(true)
     await supabase.from('goals').update({ archived_at: new Date().toISOString() }).eq('id', goal.id)
     onDeleted()
+  }
+
+  async function handleUnarchive() {
+    setArchiving(true)
+    await supabase.from('goals').update({ archived_at: null }).eq('id', goal.id)
+    setArchiving(false)
+    onUnarchived?.()
   }
 
   async function handleEdit(e) {
@@ -142,10 +152,14 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange, on
   async function handleDeposit(e) {
     e.preventDefault()
     setError('')
+    const value = parseFloat(amount)
+    if (!Number.isFinite(value) || value === 0) {
+      return setError('Enter a non-zero amount.')
+    }
     setLoading(true)
     const { error } = await supabase.from('deposits').insert({
       goal_id: goal.id,
-      amount: parseFloat(amount),
+      amount: value,
       note: note || null,
     })
     setLoading(false)
@@ -232,8 +246,17 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange, on
               <Pencil size={13} />
             </button>
 
-            {/* Archive (only when complete) */}
-            {isComplete && (
+            {/* Archive / unarchive */}
+            {isArchived ? (
+              <button
+                className="icon-btn icon-btn-active"
+                onClick={handleUnarchive}
+                disabled={archiving}
+                title="Restore goal"
+              >
+                <ArchiveRestore size={13} />
+              </button>
+            ) : isComplete && (
               <button
                 className="icon-btn"
                 onClick={handleArchive}
@@ -402,7 +425,13 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange, on
           </div>
         )}
 
-        {isComplete && (
+        {isArchived && (
+          <div style={{ marginTop: 16, fontSize: '0.85rem', color: 'var(--muted)' }}>
+            Archived{goal.archived_at ? ` ${fmtDate(goal.archived_at)}` : ''}
+          </div>
+        )}
+
+        {isComplete && !isArchived && (
           <div style={{ marginTop: 16, fontSize: '0.85rem', color: 'var(--green)' }}>
             Goal reached
           </div>
@@ -423,11 +452,10 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange, on
               <label>Amount</label>
               <input
                 type="number"
-                min="0.01"
                 step="0.01"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                placeholder="0.00"
+                placeholder="50 or -20"
                 required
                 autoFocus
               />
@@ -437,7 +465,7 @@ export default function GoalCard({ goal, onDeposit, onDeleted, onImageChange, on
               <input
                 value={note}
                 onChange={e => setNote(e.target.value)}
-                placeholder="Paycheck, birthday money..."
+                placeholder="Paycheck, spent on groceries..."
               />
             </div>
             {error && <p className="error">{error}</p>}

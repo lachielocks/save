@@ -16,7 +16,7 @@ export function totalSaved(deposits) {
 
 export function progressPercent(goalAmount, deposits) {
   if (!goalAmount) return 0
-  return Math.min(100, (totalSaved(deposits) / goalAmount) * 100)
+  return Math.max(0, Math.min(100, (totalSaved(deposits) / goalAmount) * 100))
 }
 
 // Deposits made in the last 7 days

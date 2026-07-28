@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, PiggyBank, Eye, EyeOff, LogOut, Trash2 } from 'lucide-react'
+import { ArrowLeft, PiggyBank, Eye, EyeOff, LogOut, Trash2, Archive } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useCurrency } from '../context/CurrencyContext'
 import { useAuth } from '../context/AuthContext'
@@ -213,6 +213,17 @@ export default function Settings() {
         <p style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 8 }}>
           Changes how amounts are displayed. Deposits are stored as plain numbers.
         </p>
+      </Section>
+
+      <Section title="Goals">
+        <button
+          className="btn btn-ghost"
+          style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}
+          onClick={() => navigate('/archived')}
+        >
+          <Archive size={14} />
+          Archived goals
+        </button>
       </Section>
 
       <Section title="Account">
