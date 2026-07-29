@@ -62,19 +62,39 @@ function AuthEventHandler() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         navigate('/reset')
-      } else if (event === 'SIGNED_IN') {
+        return
+      }
+
+      // Only redirect after a real sign-in from an auth screen.
+      // Session restore / tab focus also emits SIGNED_IN — don't yank the user around.
+      if (event === 'SIGNED_IN') {
         const hash = window.location.hash
+        const path = window.location.pathname
+
         if (hash.includes('type=signup')) {
-          history.replaceState(null, '', window.location.pathname)
+          history.replaceState(null, '', path)
           navigate('/create')
-        } else if (hash.includes('type=email_change')) {
-          history.replaceState(null, '', window.location.pathname)
+          return
+        }
+        if (hash.includes('type=email_change')) {
+          history.replaceState(null, '', path)
           navigate('/confirmed')
-        } else {
+          return
+        }
+
+        const authPages = ['/', '/home', '/login', '/signup', '/forgot', '/confirmed']
+        if (authPages.includes(path)) {
           navigate('/goals')
         }
-      } else if (event === 'SIGNED_OUT') {
-        navigate('/')
+        return
+      }
+
+      if (event === 'SIGNED_OUT') {
+        const path = window.location.pathname
+        const appPages = ['/goals', '/create', '/settings', '/archived']
+        if (appPages.some(p => path === p || path.startsWith(p + '/'))) {
+          navigate('/')
+        }
       }
     })
     return () => subscription.unsubscribe()
